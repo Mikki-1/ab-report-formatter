@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AB 实验数据整理工具 V2</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --section-bg: #f9f9f9;
+            --accent: #3498db;
+            --accent-hover: #2980b9;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --text: #333333;
+            --text-secondary: #7f8c8d;
+            --text-light: #999;
+            --border: #dddddd;
+            --border-light: #eaeaea;
+            --note-bg: #fffde7;
+            --note-border: #ffc107;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+            --radius: 8px;
+            --radius-sm: 4px;
+            --font: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;
+            --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 30px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .header h1 { font-size: 1.5rem; color: var(--accent); margin-bottom: 4px; }
+        .header .subtitle { font-size: 0.9rem; color: var(--text-secondary); }
+
+        .section {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: var(--section-bg);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-light);
+        }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ===== 按钮 ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-family: var(--font);
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { background: #219a52; }
+        .btn-outline { background: #fff; color: var(--text); border-color: var(--border); }
+        .btn-outline:hover { background: #f0f0f0; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn-lg { padding: 10px 22px; font-size: 14px; font-weight: 600; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+
+        /* ===== 上传区 ===== */
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fafbfc;
+            margin-bottom: 12px;
+        }
+        .upload-area:hover, .upload-area.drag-over {
+            border-color: var(--accent);
+            background: #f0f7fc;
+        }
+        .upload-area .upload-icon { font-size: 2rem; display: block; margin-bottom: 6px; }
+        .upload-area .upload-text { font-size: 13px; color: var(--text-secondary); }
+        .upload-area .upload-hint { font-size: 11px; color: var(--text-light); margin-top: 4px; }
+        .upload-area input[type="file"] { display: none; }
+
+        /* ===== 粘贴区 ===== */
+        .paste-area textarea {
+            width: 100%;
+            min-height: 180px;
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.6;
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            background: #fafbfc;
+            color: var(--text);
+            resize: vertical;
+            tab-size: 2;
+            transition: border-color 0.2s;
+        }
+        .paste-area textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            border-style: solid;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
+        }
+        .paste-area .hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            padding: 10px 14px;
+            background: var(--note-bg);
+            border-left: 3px solid var(--note-border);
+            border-radius: var(--radius-sm);
+            line-height: 1.7;
+        }
+        .paste-area .hint code {
+            background: #f0e6c0;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .input-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 12px;
+            border-bottom: 2px solid var(--border);
+        }
+        .input-tab {
+            padding: 8px 20px;
+            font-size: 13px;
+            font-family: var(--font);
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+        .input-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            font-weight: 600;
+        }
+        .input-panel { display: none; }
+        .input-panel.active { display: block; }
+
+        /* ===== 预览表格 ===== */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            min-width: 700px;
+        }
+        thead th {
+            background: var(--accent);
+            color: #fff;
+            padding: 8px 10px;
+            text-align: left;
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            white-space: nowrap;
+        }
+        tbody td {
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--border-light);
+            vertical-align: middle;
+        }
+        tbody tr:nth-child(even) { background: #f8f9fa; }
+        tbody tr:hover { background: #e8f4fd; }
+
+        .preview-section { display: none; }
+        .preview-section.show { display: block; }
+
+        /* ===== 输出区 ===== */
+        .output-section { display: none; }
+        .output-section.show { display: block; }
+
+        .output-area textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 14px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.8;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: #fafbfc;
+            color: var(--text);
+            resize: vertical;
+        }
+        .output-area textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* ===== 分析报告 ===== */
+        .analysis-section {
+            display: none;
+            margin-top: 14px;
+            padding: 16px;
+            background: #fdfdfd;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+        }
+        .analysis-section.show { display: block; }
+        .analysis-section h3 {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            color: var(--accent);
+        }
+        .analysis-section h4 {
+            font-size: 0.95rem;
+            margin: 10px 0 6px;
+        }
+        .analysis-section table {
+            min-width: unset;
+            width: auto;
+            margin: 8px 0;
+        }
+        .analysis-section table th {
+            background: #555;
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+        .analysis-section table td {
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+        .analysis-section blockquote {
+            border-left: 3px solid var(--accent);
+            padding: 6px 12px;
+            margin: 8px 0;
+            background: #f0f7fc;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        }
+
+        .stat-badge {
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 11px;
+        }
+        .stat-badge.sig { background: #e6f7ee; color: #1a7a3a; }
+        .stat-badge.mar { background: #fff8e1; color: #b8860b; }
+        .stat-badge.not { background: #f0f0f0; color: #666; }
+
+        /* ===== 指标整理面板 ===== */
+        .organize-section { display: none; }
+        .organize-section.show { display: block; }
+        .organize-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 14px;
+        }
+        .cat-card {
+            background: #fff;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            min-height: 80px;
+            transition: border-color 0.2s;
+        }
+        .cat-card.drag-over { border-color: var(--accent); background: #f0f7fc; }
+        .cat-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #f0f4f8;
+            border-radius: 6px 6px 0 0;
+            border-bottom: 1px solid var(--border-light);
+            cursor: default;
+        }
+        .cat-card-header .cat-name {
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .cat-card-header .cat-name:hover { color: var(--accent); }
+        .cat-card-header .cat-name input {
+            font-size: 13px;
+            font-weight: 600;
+            width: 120px;
+            padding: 2px 6px;
+            border: 1px solid var(--accent);
+            border-radius: 3px;
+        }
+        .cat-card-header .cat-actions { display: flex; gap: 4px; }
+        .cat-card-header .cat-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: var(--text-secondary);
+        }
+        .cat-card-header .cat-actions button:hover { color: var(--danger); background: #fde8e8; }
+        .cat-card-body {
+            padding: 6px 8px;
+            min-height: 40px;
+        }
+        .metric-chip {
+            display: block;
+            padding: 6px 10px;
+            margin: 3px 0;
+            background: #f8f9fa;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            cursor: grab;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .metric-chip:hover { background: #e8f4fd; border-color: var(--accent); }
+        .metric-chip:active { cursor: grabbing; }
+        .metric-chip.dragging { opacity: 0.4; background: #e0e0e0; }
+        .metric-chip .metric-order { color: var(--text-light); font-size: 11px; margin-right: 4px; }
+        .no-metrics { color: var(--text-light); font-size: 12px; text-align: center; padding: 12px; }
+        .uncategorized { border-style: dashed; border-color: #ccc; }
+
+        /* ===== Toast ===== */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-size: 13px;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); color: #333; }
+
+        /* ===== 使用说明 ===== */
+        .notes {
+            font-size: 13px;
+            color: var(--text-secondary);
+            padding: 14px 18px;
+            background: var(--note-bg);
+            border-left: 4px solid var(--note-border);
+            border-radius: var(--radius-sm);
+            line-height: 1.7;
+        }
+        .notes strong { color: var(--text); }
+        .notes ul { padding-left: 18px; margin-top: 4px; }
+        .notes li { margin-bottom: 2px; }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 768px) {
+            body { padding: 8px; }
+            .container { padding: 14px; border-radius: 8px; }
+            .header h1 { font-size: 1.3rem; }
+            .section { padding: 14px; margin-bottom: 16px; }
+            .btn { padding: 7px 12px; font-size: 12px; }
+            .btn-lg { padding: 9px 16px; font-size: 13px; }
+        }
+
+        ::-webkit-scrollbar { height: 6px; width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ===== 标题 ===== -->
+        <div class="header">
+            <h1>📊 AB 实验数据整理工具</h1>
+            <p class="subtitle">粘贴数据或上传 Excel，自动解析并生成规范格式的分析报告</p>
+        </div>
+
+        <!-- ===== 数据输入 ===== -->
+        <div class="section">
+            <div class="section-title"><span>📋</span>数据输入</div>
+
+            <!-- 输入方式切换 -->
+            <div class="input-tabs">
+                <button class="input-tab active" onclick="switchInputTab('paste')">📋 粘贴文本</button>
+                <button class="input-tab" onclick="switchInputTab('upload')">📁 上传 Excel</button>
+            </div>
+
+            <!-- 粘贴面板 -->
+            <div class="input-panel paste-panel active" id="pastePanel">
+                <div class="hint">
+                    <strong>从 Excel/飞书表格直接复制粘贴</strong>（Tab 分隔）<br>
+                    必需列：<code>pt</code> <code>指标</code> <code>维度/三级类目</code> <code>实验组名称</code> <code>对照组数值</code> <code>实验组数值</code> <code>相对差值</code> <code>P值</code><br>
+                    可选列：<code>BH矫正后P值</code>（优先使用）<br>
+                    <strong>指标格式：</strong><code>英文名-中文名</code>（如 <code>pv-商详访问PV</code>）
+                </div>
+                <textarea id="pasteTextarea" placeholder="在此粘贴从表格复制的数据..."></textarea>
+            </div>
+
+            <!-- 上传面板 -->
+            <div class="input-panel upload-panel" id="uploadPanel">
+                <div class="hint">
+                    <strong>上传 .xlsx 或 .xls 文件</strong>，自动读取 Sheet1 中的数据。<br>
+                    表头需包含：<code>pt</code> <code>指标</code> <code>维度/三级类目</code> <code>实验组名称</code> <code>对照组数值</code> <code>实验组数值</code> <code>相对差值</code> <code>P值</code>
+                </div>
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <span class="upload-icon">📁</span>
+                    <span class="upload-text">点击选择文件 或拖拽 Excel 文件到此处</span>
+                    <span class="upload-hint">支持 .xlsx / .xls 格式</span>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
+                </div>
+                <div id="uploadStatus" style="font-size:13px;color:var(--text-secondary);margin-top:8px;"></div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary btn-lg" onclick="parseData()">🔍 解析数据</button>
+                <button class="btn btn-outline" onclick="loadDemo()">💡 加载示例</button>
+                <button class="btn btn-outline" onclick="clearAll()">🗑 清空</button>
+            </div>
+        </div>
+
+        <!-- ===== 解析预览 ===== -->
+        <div class="section preview-section" id="previewSection">
+            <div class="section-title"><span>👁</span>解析预览</div>
+            <div style="margin-bottom:8px;font-size:13px;color:var(--text-secondary);" id="previewSummary"></div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>实验组</th>
+                            <th>维度</th>
+                            <th>指标中文名</th>
+                            <th>对照组</th>
+                            <th>实验组</th>
+                            <th>差值%</th>
+                            <th>P值</th>
+                            <th>BH矫正P</th>
+                            <th>结论</th>
+                        </tr>
+                    </thead>
+                    <tbody id="previewBody"></tbody>
+                </table>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-success btn-lg" onclick="generateReport()">📄 生成报告</button>
+            </div>
+        </div>
+
+        <!-- ===== 指标分类整理 ===== -->
+        <div class="section organize-section" id="organizeSection">
+            <div class="section-title"><span>🔧</span>整理分类（拖拽指标调整归属和排序）</div>
+            <div class="organize-grid" id="organizeGrid">
+                <!-- 动态填充分类卡片 -->
+            </div>
+            <div class="btn-row" style="margin-top:12px;">
+                <button class="btn btn-outline btn-sm" onclick="addCategory()">＋ 新增类型</button>
+                <button class="btn btn-outline btn-sm" onclick="resetCategories()">🔄 恢复默认</button>
+            </div>
+        </div>
+
+        <!-- ===== 格式化输出 ===== -->
+        <div class="section output-section" id="outputSection">
+            <div class="section-title"><span>📄</span>格式化输出</div>
+            <div class="output-area">
+                <textarea id="outputTextarea" readonly></textarea>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-success" onclick="copyOutput()">📋 复制文本</button>
+                <button class="btn btn-primary" onclick="copyRichText()">📋 复制为富文本（飞书可用）</button>
+                <button class="btn btn-outline" onclick="toggleAnalysis()" id="analysisToggleBtn">📝 显示分析报告</button>
+            </div>
+            <div class="analysis-section" id="analysisSection"></div>
+        </div>
+
+        <!-- ===== 使用说明 ===== -->
+        <div class="notes">
+            <strong>📖 使用说明</strong>
+            <ul>
+                <li><strong>两种输入：</strong>粘贴文本 或 上传 Excel（.xlsx/.xls）</li>
+                <li><strong>指标名：</strong>自动从「英文名-中文名」格式中提取中文名</li>
+                <li><strong>数值提取：</strong>自动从「数字 (计算明细)」中提取空格前的数字</li>
+                <li><strong>差值%：</strong>使用原始「相对差值」列 × 100%</li>
+                <li><strong>P值优先级：</strong>优先使用 BH 矫正后 P 值</li>
+                <li><strong>结论规则：</strong>P&lt;0.05 → 显著；0.05≤P&lt;0.1 → 接近显著；P≥0.1 → 不显著</li>
+                <li><strong>仅输出存在的指标</strong>，缺失分类自动跳过</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // ===== 常量 =====
+        const METRIC_ORDER = {
+            '商详访问PV': 1, '商详访问UV': 2, '人均访问商品量': 3, '人均访问时长': 4,
+            '购买转化率': 5, '当天子订单量': 6, '7日内成交单量': 7,
+            '客单价': 8, '3日客单价': 9, '7日客单价': 10,
+            '实付笔单价': 11, '7日实付笔单价': 12,
+            '实付UV价值': 13, '3日实付UV价值': 14, '7日实付UV价值': 15,
+            '实付GMV': 16, '3日实付GMV': 17, '7日实付GMV': 18,
+            '商详3日留存': 19, '次日回访率': 20, '7日回访率': 21
+        };
+
+        const CATEGORIES = [
+            { name: '浏览', metrics: ['商详访问PV','商详访问UV','人均访问商品量','人均访问时长'] },
+            { name: '转化', metrics: ['购买转化率','当天子订单量','7日内成交单量'] },
+            { name: '单价', metrics: ['客单价','3日客单价','7日客单价','实付笔单价','7日实付笔单价','实付UV价值','3日实付UV价值','7日实付UV价值','实付GMV','3日实付GMV','7日实付GMV'] },
+            { name: '留存', metrics: ['商详3日留存','次日回访率','7日回访率'] }
+        ];
+
+        const PERCENTAGE_METRICS = new Set([
+            '购买转化率', '次日回访率', '7日回访率', '商详3日留存'
+        ]);
+
+        // ===== DOM 引用 =====
+        const pasteTextarea = document.getElementById('pasteTextarea');
+        const previewSection = document.getElementById('previewSection');
+        const previewBody = document.getElementById('previewBody');
+        const previewSummary = document.getElementById('previewSummary');
+        const outputSection = document.getElementById('outputSection');
+        const outputTextarea = document.getElementById('outputTextarea');
+        const analysisSection = document.getElementById('analysisSection');
+        const analysisToggleBtn = document.getElementById('analysisToggleBtn');
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const toast = document.getElementById('toast');
+
+        // ===== 状态 =====
+        let parsedRows = [];
+        let experimentGroups = [];
+        let currentInputMode = 'paste'; // 'paste' | 'upload'
+        let uploadedFileName = '';
+        let customCategories = null; // 用户自定义分类，null=使用默认
+
+        // ===== 输入模式切换 =====
+        window.switchInputTab = function(mode) {
+            currentInputMode = mode;
+            document.querySelectorAll('.input-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.input-panel').forEach(p => p.classList.remove('active'));
+
+            if (mode === 'paste') {
+                document.querySelector('.input-tab:nth-child(1)').classList.add('active');
+                document.getElementById('pastePanel').classList.add('active');
+            } else {
+                document.querySelector('.input-tab:nth-child(2)').classList.add('active');
+                document.getElementById('uploadPanel').classList.add('active');
+            }
+        };
+
+        // ===== Excel 上传 =====
+        window.handleFileSelect = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            processExcelFile(file);
+        };
+
+        // 拖拽支持
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+        uploadArea.addEventListener('dragleave', function() {
+            uploadArea.classList.remove('drag-over');
+        });
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file) processExcelFile(file);
+        });
+
+        function processExcelFile(file) {
+            const name = file.name.toLowerCase();
+            if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+                showToast('请上传 .xlsx 或 .xls 文件', 'error');
+                return;
+            }
+
+            uploadedFileName = file.name;
+            uploadStatus.innerHTML = '⏳ 正在读取：' + file.name + '...';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    // 转为 tab 分隔文本
+                    const csvText = XLSX.utils.sheet_to_csv(worksheet, { FS: '\t', blankrows: false });
+                    // 填充到粘贴区（复用解析逻辑）
+                    pasteTextarea.value = csvText;
+                    uploadStatus.innerHTML = '✅ 已读取：<strong>' + file.name + '</strong>（' + sheetName + '），共 ' + csvText.split('\n').filter(l => l.trim()).length + ' 行，点击「解析数据」';
+                    showToast('已读取 ' + file.name + '，点击「解析数据」', 'success');
+                } catch (err) {
+                    console.error(err);
+                    uploadStatus.innerHTML = '❌ 读取失败：' + err.message;
+                    showToast('文件读取失败，请检查格式', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // ===== 工具函数 =====
+        function extractChineseName(indicator) {
+            if (!indicator) return '';
+            const s = String(indicator).trim();
+            const lastDash = s.lastIndexOf('-');
+            return lastDash >= 0 ? s.substring(lastDash + 1).trim() : s;
+        }
+
+        // 指标名标准化：将变体名映射到标准名
+        function normalizeMetricName(rawName) {
+            let name = rawName.trim();
+            // 去掉括号后缀如 (元)、(元/人) 等
+            name = name.replace(/\([^)]*\)/g, '').trim();
+            // 去掉末尾的"元"
+            name = name.replace(/元$/, '').trim();
+
+            // 精确匹配
+            if (METRIC_ORDER[name]) return name;
+
+            // 变体映射表（按常见变体）
+            const ALIASES = {
+                '3日内成交单量': '7日内成交单量', // 无此指标时跳过
+                '3日内实付gmv': '3日实付GMV',
+                '7日内实付gmv': '7日实付GMV',
+                '实付3日uv价值': '3日实付UV价值',
+                '实付7日uv价值': '7日实付UV价值',
+                '实付7日笔单价': '7日实付笔单价',
+                '实付3日客单价': '3日客单价',
+                '实付7日客单价': '7日客单价',
+            };
+
+            if (ALIASES[name]) return ALIASES[name];
+
+            // 大小写不敏感匹配
+            const lowerName = name.toLowerCase();
+            for (const key of Object.keys(METRIC_ORDER)) {
+                if (key.toLowerCase() === lowerName) return key;
+            }
+
+            // "X日内" → "X日" 通用转换
+            const neiMatch = name.match(/^(\d+)日内(.+)$/);
+            if (neiMatch) {
+                const normalized = neiMatch[1] + '日' + neiMatch[2];
+                const cleaned = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+                for (const key of Object.keys(METRIC_ORDER)) {
+                    if (key.toLowerCase() === cleaned.toLowerCase()) return key;
+                }
+            }
+
+            // "实付Nd" → "N日实付" 转换
+            const swapMatch = name.match(/^实付(\d+)日(.+)$/);
+            if (swapMatch) {
+                const normalized = swapMatch[1] + '日实付' + swapMatch[2];
+                for (const key of Object.keys(METRIC_ORDER)) {
+                    if (key.toLowerCase() === normalized.toLowerCase()) return key;
+                }
+            }
+
+            return name; // 无法匹配，返回清理后的原名
+        }
+
+        function extractNumber(raw) {
+            if (!raw) return { value: null, display: '', isPercent: false };
+            const s = String(raw).trim();
+            const isPercent = s.includes('%');
+            const cleaned = s.replace(/^["']|["']$/g, '');
+            // 取第一个空格前的数字
+            const match = cleaned.match(/^([-\d,]+\.?\d*)\s*%?/);
+            if (match) {
+                const numStr = match[1].replace(/,/g, '');
+                const num = parseFloat(numStr);
+                return {
+                    value: isNaN(num) ? null : num,
+                    display: numStr + (isPercent ? '%' : ''),
+                    isPercent: isPercent
+                };
+            }
+            return { value: null, display: raw, isPercent: false };
+        }
+
+        function parseRelativeDiff(raw) {
+            // 相对差值列：可能是小数 (0.015441) 或 已含% (0.86%)
+            // 返回百分比数值（如 1.54 表示 1.54%）
+            if (!raw) return NaN;
+            const s = String(raw).trim();
+            if (s.includes('%')) {
+                // 已是百分比格式: "0.86%"
+                const n = parseFloat(s.replace('%', ''));
+                return isNaN(n) ? NaN : n;
+            }
+            // 小数格式: "0.015441" → ×100
+            const n = parseFloat(s);
+            return isNaN(n) ? NaN : n * 100;
+        }
+
+        function parsePValue(raw) {
+            if (!raw) return NaN;
+            const s = String(raw).trim();
+            const n = parseFloat(s);
+            return isNaN(n) ? NaN : n;
+        }
+
+        function formatNum(val, isPercent) {
+            if (isPercent) return val.toFixed(2) + '%';
+            return val.toFixed(2);
+        }
+
+        function escHtml(s) {
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        // ===== 解析数据 =====
+        window.parseData = function() {
+            const text = pasteTextarea.value.trim();
+            if (!text) {
+                showToast('请先粘贴数据或上传 Excel 后点击「解析数据」', 'warning');
+                return;
+            }
+
+            const lines = text.split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                showToast('数据行数不足（至少需要表头+1行数据）', 'error');
+                return;
+            }
+
+            const firstLine = lines[0];
+            const tabs = (firstLine.match(/\t/g) || []).length;
+            const delimiter = tabs >= 1 ? '\t' : ',';
+
+            const headers = lines[0].split(delimiter).map(h => h.trim());
+            const colIndex = {
+                indicator: headers.findIndex(h => h === '指标' || (h.includes('指标') && !h.includes('BH'))),
+                dimension: headers.findIndex(h => h === '维度' || h === '三级类目' || h === '二级类目' || h === '一级类目' || h.includes('类目')),
+                groupName: headers.findIndex(h => h === '实验组名称' || (h.includes('实验组') && (h.includes('名称') || h.includes('ID') || h.includes('id')))),
+                controlValue: headers.findIndex(h => h === '对照组数值' || (h.includes('对照') && h.includes('数值')) || (h.includes('对照') && !h.includes('名称'))),
+                experimentValue: headers.findIndex(h => h === '实验组数值' || (h.includes('实验') && h.includes('数值'))),
+                relativeDiff: headers.findIndex(h => h === '相对差值' || (h.includes('相对') && h.includes('差值'))),
+                pValue: headers.findIndex(h => h === 'P值' || h === 'p值' || (h.toLowerCase().includes('p值') && !h.includes('BH'))),
+                bhPValue: headers.findIndex(h => h === 'BH矫正后P值' || h.includes('BH矫正') || h.includes('BH') || h.includes('bh'))
+            };
+
+            if (colIndex.indicator < 0) { showToast('未找到「指标」列', 'error'); return; }
+            if (colIndex.groupName < 0) { showToast('未找到「实验组名称」列', 'error'); return; }
+            if (colIndex.controlValue < 0) { showToast('未找到「对照组数值」列', 'error'); return; }
+            if (colIndex.experimentValue < 0) { showToast('未找到「实验组数值」列', 'error'); return; }
+
+            parsedRows = [];
+            const errors = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(delimiter);
+                const minCols = Math.max(colIndex.indicator, colIndex.groupName, colIndex.controlValue, colIndex.experimentValue) + 1;
+                if (parts.length < minCols) continue;
+
+                const rawIndicator = (parts[colIndex.indicator] || '').trim();
+                const rawGroupName = (parts[colIndex.groupName] || '').trim();
+                const rawDimension = (colIndex.dimension >= 0 ? parts[colIndex.dimension] : '') || '';
+                const rawControl = (colIndex.controlValue >= 0 ? parts[colIndex.controlValue] : '') || '';
+                const rawExperiment = (colIndex.experimentValue >= 0 ? parts[colIndex.experimentValue] : '') || '';
+                const rawRelDiff = (colIndex.relativeDiff >= 0 ? parts[colIndex.relativeDiff] : '') || '';
+                const rawPValue = (colIndex.pValue >= 0 ? parts[colIndex.pValue] : '') || '';
+                const rawBhPValue = (colIndex.bhPValue >= 0 ? parts[colIndex.bhPValue] : '') || '';
+
+                if (!rawIndicator || !rawGroupName) continue;
+
+                const rawName = extractChineseName(rawIndicator);
+                const name = normalizeMetricName(rawName);
+                const ctrl = extractNumber(rawControl);
+                const exp = extractNumber(rawExperiment);
+                const relDiff = parseRelativeDiff(rawRelDiff);
+                const pv = parsePValue(rawPValue);
+                const bhPv = parsePValue(rawBhPValue);
+
+                const effectivePv = !isNaN(bhPv) ? bhPv : pv;
+
+                if (ctrl.value === null || exp.value === null) {
+                    errors.push(`第${i+1}行「${name}」: 数值解析失败`);
+                    continue;
+                }
+                if (isNaN(effectivePv)) {
+                    errors.push(`第${i+1}行「${name}」: P值解析失败`);
+                    continue;
+                }
+
+                const isPercent = ctrl.isPercent || exp.isPercent || PERCENTAGE_METRICS.has(name);
+                const diffPercent = isNaN(relDiff) ? 0 : relDiff;
+
+                parsedRows.push({
+                    groupName: rawGroupName,
+                    dimension: rawDimension.trim(),
+                    metricName: name,
+                    controlValue: ctrl.value,
+                    experimentValue: exp.value,
+                    controlDisplay: ctrl.display,
+                    experimentDisplay: exp.display,
+                    isPercent: isPercent,
+                    pValue: effectivePv,
+                    originalPValue: pv,
+                    bhPValue: bhPv,
+                    diffPercent: diffPercent
+                });
+            }
+
+            if (parsedRows.length === 0) {
+                showToast('未能解析出有效数据' + (errors.length ? '\n' + errors.slice(0,3).join('\n') : ''), 'error');
+                return;
+            }
+
+            const groupSet = new Map();
+            for (const row of parsedRows) {
+                if (!groupSet.has(row.groupName)) groupSet.set(row.groupName, row.groupName);
+            }
+            experimentGroups = Array.from(groupSet.keys());
+
+            renderPreview();
+            previewSection.classList.add('show');
+            outputSection.classList.remove('show');
+            analysisSection.classList.remove('show');
+            customCategories = null;
+            document.getElementById('organizeSection').classList.remove('show');
+            buildOrganizer(); // 构建整理面板
+
+            let msg = `解析成功: ${parsedRows.length} 条数据, ${experimentGroups.length} 个实验组`;
+            if (errors.length) { msg += `, ${errors.length} 行被跳过`; console.warn('跳过:', errors); }
+            showToast(msg, errors.length ? 'warning' : 'success');
+        };
+
+        // ===== 渲染预览 =====
+        function renderPreview() {
+            const sorted = [...parsedRows].sort((a, b) => {
+                const oa = METRIC_ORDER[a.metricName] || 999;
+                const ob = METRIC_ORDER[b.metricName] || 999;
+                if (oa !== ob) return oa - ob;
+                return a.groupName.localeCompare(b.groupName);
+            });
+
+            previewBody.innerHTML = sorted.map(r => {
+                const diffSign = r.diffPercent >= 0 ? '+' : '';
+                const diffDisplay = diffSign + r.diffPercent.toFixed(2) + '%';
+                let significance;
+                if (r.pValue < 0.05) significance = '显著';
+                else if (r.pValue < 0.1) significance = '接近显著';
+                else significance = '不显著';
+
+                const bhStr = !isNaN(r.bhPValue) ? r.bhPValue.toFixed(3) : '-';
+                const pStr = r.pValue.toFixed(3);
+                const pDisplay = !isNaN(r.bhPValue) ? `<strong>${bhStr}</strong>（原${pStr}）` : pStr;
+
+                return `<tr>
+                    <td>${escHtml(r.groupName)}</td>
+                    <td>${escHtml(r.dimension || '')}</td>
+                    <td>${escHtml(r.metricName)}</td>
+                    <td>${escHtml(r.controlDisplay)}</td>
+                    <td>${escHtml(r.experimentDisplay)}</td>
+                    <td>${diffDisplay}</td>
+                    <td>${pDisplay}</td>
+                    <td>${bhStr}</td>
+                    <td>${significance}</td>
+                </tr>`;
+            }).join('');
+
+            previewSummary.innerHTML = `
+                共 <strong>${parsedRows.length}</strong> 条数据，
+                <strong>${experimentGroups.length}</strong> 个实验组：
+                ${experimentGroups.map(g => `<code>${escHtml(g)}</code>`).join('、')}
+            `;
+        }
+
+        // ===== 指标分类整理 =====
+        function getActiveCategories() {
+            return customCategories || CATEGORIES;
+        }
+
+        function buildOrganizer() {
+            if (parsedRows.length === 0) return;
+            const cats = JSON.parse(JSON.stringify(getActiveCategories())); // deep copy
+            const allMetrics = [...new Set(parsedRows.map(r => r.metricName))];
+            const catSet = new Set(cats.flatMap(c => c.metrics));
+            const uncategorized = allMetrics.filter(m => !catSet.has(m));
+
+            // 确保所有已分类指标存在（防止数据不一致）
+            const usedMetrics = new Set();
+            for (const cat of cats) {
+                cat.metrics = cat.metrics.filter(m => allMetrics.includes(m));
+                cat.metrics.forEach(m => usedMetrics.add(m));
+            }
+            // 未分类的指标
+            const remaining = allMetrics.filter(m => !usedMetrics.has(m));
+            if (remaining.length > 0 && !cats.find(c => c.name === '未分类')) {
+                cats.push({ name: '未分类', metrics: remaining });
+            } else if (remaining.length > 0) {
+                const uncat = cats.find(c => c.name === '未分类');
+                uncat.metrics = [...new Set([...uncat.metrics, ...remaining])];
+            } else {
+                // 移除空的未分类
+                const idx = cats.findIndex(c => c.name === '未分类' && c.metrics.length === 0);
+                if (idx >= 0) cats.splice(idx, 1);
+            }
+
+            customCategories = cats;
+            renderOrganizer();
+        }
+
+        function renderOrganizer() {
+            const grid = document.getElementById('organizeGrid');
+            const cats = customCategories || CATEGORIES;
+            grid.innerHTML = '';
+
+            cats.forEach((cat, catIdx) => {
+                const card = document.createElement('div');
+                card.className = 'cat-card' + (cat.name === '未分类' ? ' uncategorized' : '');
+                card.setAttribute('data-cat-idx', catIdx);
+                card.addEventListener('dragover', onDragOver);
+                card.addEventListener('drop', onDrop);
+
+                // 头部
+                const header = document.createElement('div');
+                header.className = 'cat-card-header';
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'cat-name';
+                nameSpan.textContent = cat.name + '（' + cat.metrics.length + '）';
+                nameSpan.addEventListener('dblclick', () => renameCategory(catIdx, nameSpan));
+                header.appendChild(nameSpan);
+
+                const actions = document.createElement('div');
+                actions.className = 'cat-actions';
+                if (cat.metrics.length === 0 && cat.name !== '未分类') {
+                    const delBtn = document.createElement('button');
+                    delBtn.textContent = '✕';
+                    delBtn.title = '删除空分类';
+                    delBtn.addEventListener('click', () => deleteCategory(catIdx));
+                    actions.appendChild(delBtn);
+                }
+                header.appendChild(actions);
+                card.appendChild(header);
+
+                // 内容
+                const body = document.createElement('div');
+                body.className = 'cat-card-body';
+                body.setAttribute('data-cat-idx', catIdx);
+
+                if (cat.metrics.length === 0) {
+                    body.innerHTML = '<div class="no-metrics">拖拽指标到此处</div>';
+                } else {
+                    cat.metrics.forEach((metricName, metricIdx) => {
+                        const chip = document.createElement('div');
+                        chip.className = 'metric-chip';
+                        chip.setAttribute('draggable', 'true');
+                        chip.setAttribute('data-cat-idx', catIdx);
+                        chip.setAttribute('data-metric-idx', metricIdx);
+                        chip.setAttribute('data-metric-name', metricName);
+                        chip.addEventListener('dragstart', onDragStart);
+                        chip.addEventListener('dragend', onDragEnd);
+                        const order = METRIC_ORDER[metricName];
+                        chip.innerHTML = `<span class="metric-order">${order ? '#' + order : ''}</span>${metricName}`;
+                        body.appendChild(chip);
+                    });
+                }
+                card.appendChild(body);
+                grid.appendChild(card);
+            });
+
+            document.getElementById('organizeSection').classList.add('show');
+        }
+
+        // ===== 拖拽事件 =====
+        let dragData = null;
+
+        function onDragStart(e) {
+            dragData = {
+                catIdx: parseInt(e.target.getAttribute('data-cat-idx')),
+                metricIdx: parseInt(e.target.getAttribute('data-metric-idx')),
+                metricName: e.target.getAttribute('data-metric-name')
+            };
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', dragData.metricName);
+        }
+
+        function onDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('drag-over'));
+            dragData = null;
+        }
+
+        function onDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const card = e.target.closest('.cat-card');
+            if (card) card.classList.add('drag-over');
+        }
+
+        function onDrop(e) {
+            e.preventDefault();
+            const card = e.target.closest('.cat-card');
+            if (!card) return;
+            card.classList.remove('drag-over');
+            if (!dragData) return;
+
+            const targetCatIdx = parseInt(card.getAttribute('data-cat-idx'));
+            const cats = customCategories;
+
+            // 从原分类移除
+            const srcCat = cats[dragData.catIdx];
+            const movedMetric = srcCat.metrics.splice(dragData.metricIdx, 1)[0];
+
+            // 确定插入位置
+            const chip = e.target.closest('.metric-chip');
+            if (chip && parseInt(chip.getAttribute('data-cat-idx')) === targetCatIdx) {
+                const targetIdx = parseInt(chip.getAttribute('data-metric-idx'));
+                // 由于已经移除了原位置的元素，需要重新获取目标索引
+                const actualTarget = cats[targetCatIdx].metrics.indexOf(chip.getAttribute('data-metric-name'));
+                cats[targetCatIdx].metrics.splice(actualTarget, 0, movedMetric);
+            } else {
+                cats[targetCatIdx].metrics.push(movedMetric);
+            }
+
+            // 清理空分类（保留未分类）
+            for (let i = cats.length - 1; i >= 0; i--) {
+                if (cats[i].metrics.length === 0 && cats[i].name !== '未分类') {
+                    cats.splice(i, 1);
+                }
+            }
+
+            renderOrganizer();
+        }
+
+        // ===== 分类操作 =====
+        function renameCategory(catIdx, nameSpan) {
+            const cats = customCategories;
+            const oldName = cats[catIdx].name;
+            const input = document.createElement('input');
+            input.value = oldName;
+            input.addEventListener('blur', () => {
+                const newName = input.value.trim() || oldName;
+                cats[catIdx].name = newName;
+                renderOrganizer();
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') input.blur();
+            });
+            nameSpan.innerHTML = '';
+            nameSpan.appendChild(input);
+            input.focus();
+            input.select();
+        }
+
+        window.addCategory = function() {
+            if (!customCategories) return;
+            const name = prompt('输入新类型名称：');
+            if (!name || !name.trim()) return;
+            customCategories.push({ name: name.trim(), metrics: [] });
+            renderOrganizer();
+        };
+
+        function deleteCategory(catIdx) {
+            if (!customCategories) return;
+            const cat = customCategories[catIdx];
+            if (cat.metrics.length > 0) return;
+            customCategories.splice(catIdx, 1);
+            renderOrganizer();
+        }
+
+        window.resetCategories = function() {
+            customCategories = null;
+            buildOrganizer();
+            showToast('已恢复默认分类', 'warning');
+        };
+        window.generateReport = function() {
+            if (parsedRows.length === 0) {
+                showToast('请先解析数据', 'warning');
+                return;
+            }
+
+            const isMultiGroup = experimentGroups.length > 1;
+            let output = '';
+
+            if (isMultiGroup) {
+                // ===== 多组：一行一个维度，格内=完整报告（指标名+分类标题+结论，\n换行） =====
+                output += `### 多组对比\n\n`;
+
+                const dimensions = [...new Set(parsedRows.map(r => r.dimension || '整体'))];
+
+                function formatCellContent(groupName, dimension) {
+                    const groupRows = parsedRows.filter(r => r.groupName === groupName && (r.dimension || '整体') === dimension);
+                    const lines = [];
+                    for (const cat of getActiveCategories()) {
+                        const catRows = groupRows.filter(r => cat.metrics.includes(r.metricName));
+                        if (catRows.length === 0) continue;
+                        catRows.sort((a, b) => (METRIC_ORDER[a.metricName] || 999) - (METRIC_ORDER[b.metricName] || 999));
+                        lines.push(`${cat.name}：`);
+                        lines.push(''); // 分类名后换行
+                        catRows.forEach(r => lines.push(formatConclusionLine(r)));
+                        lines.push('');
+                    }
+                    const categorizedNames = new Set(getActiveCategories().flatMap(c => c.metrics));
+                    const uncategorized = groupRows.filter(r => !categorizedNames.has(r.metricName));
+                    if (uncategorized.length > 0) {
+                        uncategorized.sort((a, b) => a.metricName.localeCompare(b.metricName, 'zh'));
+                        lines.push('其他：');
+                        uncategorized.forEach(r => lines.push(formatConclusionLine(r)));
+                        lines.push('');
+                    }
+                    return lines.join('<br>');
+                }
+
+                // 表头
+                output += '| 维度 |';
+                for (const groupName of experimentGroups) {
+                    output += ` ${groupName} |`;
+                }
+                output += '\n';
+
+                // 分隔线
+                output += '|------|';
+                for (let i = 0; i < experimentGroups.length; i++) {
+                    output += '------|';
+                }
+                output += '\n';
+
+                // 每行一个维度
+                for (const dim of dimensions) {
+                    output += `| ${dim} |`;
+                    for (const groupName of experimentGroups) {
+                        const cell = formatCellContent(groupName, dim);
+                        output += ` ${cell} |`;
+                    }
+                    output += '\n';
+                }
+                output += '\n';
+            } else {
+                // ===== 单组：列表模式 =====
+                const groupName = experimentGroups[0];
+                const groupRows = parsedRows.filter(r => r.groupName === groupName);
+
+                for (const cat of getActiveCategories()) {
+                    const catRows = groupRows.filter(r => cat.metrics.includes(r.metricName));
+                    if (catRows.length === 0) continue;
+
+                    catRows.sort((a, b) => (METRIC_ORDER[a.metricName] || 999) - (METRIC_ORDER[b.metricName] || 999));
+
+                    output += `${cat.name}：\n`;
+                    for (const r of catRows) {
+                        output += formatConclusionLine(r) + '\n';
+                    }
+                    output += '\n';
+                }
+
+                const categorizedNames = new Set(getActiveCategories().flatMap(c => c.metrics));
+                const uncategorized = groupRows.filter(r => !categorizedNames.has(r.metricName));
+                if (uncategorized.length > 0) {
+                    uncategorized.sort((a, b) => a.metricName.localeCompare(b.metricName, 'zh'));
+                    output += `其他：\n`;
+                    for (const r of uncategorized) {
+                        output += formatConclusionLine(r) + '\n';
+                    }
+                    output += '\n';
+                }
+            }
+
+            outputTextarea.value = output.trim();
+            outputSection.classList.add('show');
+            outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            generateAnalysis();
+            analysisSection.classList.add('show');
+            analysisToggleBtn.textContent = '📝 隐藏分析报告';
+
+            showToast('报告已生成', 'success');
+        };
+
+        function formatConclusionLine(r) {
+            const direction = r.diffPercent >= 0 ? '正向' : '负向';
+            let significance, showP;
+            if (r.pValue < 0.05) {
+                significance = '显著'; showP = false;
+            } else if (r.pValue < 0.1) {
+                significance = '接近显著'; showP = true;
+            } else {
+                significance = '不显著'; showP = true;
+            }
+
+            const ctrlDisplay = formatNum(r.controlValue, r.isPercent);
+            const expDisplay = formatNum(r.experimentValue, r.isPercent);
+            const diffSign = r.diffPercent >= 0 ? '+' : '';
+            const diffDisplay = diffSign + r.diffPercent.toFixed(2) + '%';
+            const pStr = showP ? `，p=${r.pValue.toFixed(3)}` : '';
+
+            // 显著/接近显著 → 加粗+颜色标记
+            let conclusion;
+            if (significance !== '不显著') {
+                if (direction === '正向') {
+                    conclusion = `<span style="color:red;font-weight:bold">${direction}${significance}</span>`;
+                } else {
+                    conclusion = `<span style="color:green;font-weight:bold">${direction}${significance}</span>`;
+                }
+            } else {
+                conclusion = `${direction}${significance}`;
+            }
+
+            return `${r.metricName}：${conclusion} ${diffDisplay}（${ctrlDisplay}-${expDisplay}${pStr}）`;
+        }
+
+        // ===== 分析报告 =====
+        function generateAnalysis() {
+            let html = '<h3>📊 分析报告</h3>';
+            const isMultiGroup = experimentGroups.length > 1;
+
+            for (let gi = 0; gi < experimentGroups.length; gi++) {
+                const groupName = experimentGroups[gi];
+                const groupRows = parsedRows.filter(r => r.groupName === groupName);
+
+                const sigCount = groupRows.filter(r => r.pValue < 0.05).length;
+                const marginalCount = groupRows.filter(r => r.pValue >= 0.05 && r.pValue < 0.1).length;
+                const notSigCount = groupRows.filter(r => r.pValue >= 0.1).length;
+
+                const groupLabel = isMultiGroup
+                    ? `实验组${gi + 1}（${groupName}）`
+                    : '本实验';
+
+                if (isMultiGroup) html += `<h4>${groupLabel}</h4>`;
+
+                html += `<p>共 <strong>${groupRows.length}</strong> 个指标：`;
+                html += `<span class="stat-badge sig">显著 ${sigCount}</span> `;
+                html += `<span class="stat-badge mar">接近显著 ${marginalCount}</span> `;
+                html += `<span class="stat-badge not">不显著 ${notSigCount}</span></p>`;
+
+                html += '<h4>核心结论</h4>';
+                if (sigCount === 0 && marginalCount === 0) {
+                    html += '<p>所有指标均不显著，实验组与对照组无统计学差异。</p>';
+                } else {
+                    const sigMetrics = groupRows.filter(r => r.pValue < 0.05);
+                    const posSig = sigMetrics.filter(r => r.diffPercent > 0);
+                    const negSig = sigMetrics.filter(r => r.diffPercent < 0);
+                    const parts = [];
+                    if (posSig.length > 0) parts.push(`${posSig.map(r => r.metricName).join('、')} 显著正向提升`);
+                    if (negSig.length > 0) parts.push(`${negSig.map(r => r.metricName).join('、')} 显著负向下降`);
+                    if (marginalCount > 0) {
+                        const marMetrics = groupRows.filter(r => r.pValue >= 0.05 && r.pValue < 0.1);
+                        parts.push(`${marMetrics.map(r => r.metricName).join('、')} 接近显著`);
+                    }
+                    html += `<p>${parts.join('；')}。</p>`;
+                }
+
+                html += '<h4>总结与建议</h4>';
+                html += '<table><thead><tr><th>维度</th><th>结论</th></tr></thead><tbody>';
+                for (const cat of getActiveCategories()) {
+                    const catRows = groupRows.filter(r => cat.metrics.includes(r.metricName));
+                    if (catRows.length === 0) continue;
+
+                    const catSig = catRows.filter(r => r.pValue < 0.05);
+                    const catMar = catRows.filter(r => r.pValue >= 0.05 && r.pValue < 0.1);
+                    let conclusion;
+                    if (catSig.length === 0 && catMar.length === 0) {
+                        conclusion = '无显著变化';
+                    } else {
+                        const parts = [];
+                        if (catSig.length > 0) {
+                            const pos = catSig.filter(r => r.diffPercent > 0);
+                            const neg = catSig.filter(r => r.diffPercent < 0);
+                            if (pos.length > 0) parts.push(`${pos.length}项显著正向`);
+                            if (neg.length > 0) parts.push(`${neg.length}项显著负向`);
+                        }
+                        if (catMar.length > 0) parts.push(`${catMar.length}项接近显著`);
+                        conclusion = parts.join('，');
+                    }
+                    html += `<tr><td><strong>${cat.name}</strong></td><td>${conclusion}</td></tr>`;
+                }
+                html += '</tbody></table>';
+
+                html += '<blockquote><strong>建议：</strong>';
+                const hasSigPos = groupRows.some(r => r.pValue < 0.05 && r.diffPercent > 0);
+                const hasSigNeg = groupRows.some(r => r.pValue < 0.05 && r.diffPercent < 0);
+                if (hasSigPos && !hasSigNeg) {
+                    html += '实验组表现整体优于对照组，建议推进上线。';
+                } else if (hasSigNeg && !hasSigPos) {
+                    html += '实验组表现整体不如对照组，建议优化方案或暂停实验。';
+                } else if (hasSigPos && hasSigNeg) {
+                    html += '实验组在部分指标上正向、部分负向，建议结合业务目标权衡后决策。';
+                } else {
+                    html += '目前未观察到显著差异，建议延长实验周期或增大样本量继续观察。';
+                }
+                html += '</blockquote>';
+            }
+
+            analysisSection.innerHTML = html;
+        }
+
+        // ===== 复制 =====
+        window.copyOutput = function() {
+            const text = outputTextarea.value;
+            if (!text) { showToast('请先生成报告', 'warning'); return; }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板 ✅', 'success'))
+                    .catch(() => fallbackCopy(text));
+            } else { fallbackCopy(text); }
+        };
+
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed'; ta.style.left = '-9999px';
+            document.body.appendChild(ta); ta.focus(); ta.select();
+            try { document.execCommand('copy'); showToast('已复制到剪贴板 ✅', 'success'); }
+            catch (e) { showToast('复制失败', 'error'); }
+            document.body.removeChild(ta);
+        }
+
+        window.copyRichText = function() {
+            const text = outputTextarea.value;
+            if (!text) { showToast('请先生成报告', 'warning'); return; }
+
+            const lines = text.split('\n');
+            let html = '<meta charset="UTF-8"><table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse">';
+            let inTable = false;
+            for (const line of lines) {
+                const t = line.trim();
+                if (t.startsWith('|') && t.endsWith('|')) {
+                    if (t.includes('---')) continue;
+                    const cells = t.slice(1, -1).split('|').map(c => c.trim());
+                    if (!inTable) {
+                        html += '<thead><tr>';
+                        cells.forEach(c => html += `<th>${c}</th>`);
+                        html += '</tr></thead><tbody>';
+                        inTable = true;
+                    } else {
+                        html += '<tr>';
+                        cells.forEach(c => html += `<td>${c}</td>`);
+                        html += '</tr>';
+                    }
+                } else {
+                    if (inTable) { html += '</tbody></table>'; inTable = false; }
+                    if (t) html += `<p>${t}</p>`;
+                }
+            }
+            if (inTable) html += '</tbody></table>';
+
+            // 同时准备纯文本版（去掉 <br>，用换行符）
+            const plainText = text.replace(/<br>/g, '\n');
+
+            if (navigator.clipboard && navigator.clipboard.write) {
+                const htmlBlob = new Blob([html], { type: 'text/html' });
+                const textBlob = new Blob([plainText], { type: 'text/plain' });
+                navigator.clipboard.write([new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob })])
+                    .then(() => showToast('已复制，粘贴到飞书试试', 'success'))
+                    .catch(() => { fallbackCopy(plainText); showToast('已复制纯文本', 'warning'); });
+            } else {
+                fallbackCopy(plainText);
+                showToast('已复制纯文本', 'warning');
+            }
+        };
+
+        window.toggleAnalysis = function() {
+            if (analysisSection.classList.contains('show')) {
+                analysisSection.classList.remove('show');
+                analysisToggleBtn.textContent = '📝 显示分析报告';
+            } else {
+                analysisSection.classList.add('show');
+                analysisToggleBtn.textContent = '📝 隐藏分析报告';
+            }
+        };
+
+        window.clearAll = function() {
+            pasteTextarea.value = '';
+            fileInput.value = '';
+            uploadStatus.innerHTML = '';
+            uploadedFileName = '';
+            parsedRows = [];
+            experimentGroups = [];
+            previewBody.innerHTML = '';
+            outputTextarea.value = '';
+            previewSection.classList.remove('show');
+            outputSection.classList.remove('show');
+            analysisSection.classList.remove('show');
+            document.getElementById('organizeSection').classList.remove('show');
+            analysisToggleBtn.textContent = '📝 显示分析报告';
+            showToast('已清空', 'warning');
+        };
+
+        // ===== 加载示例数据 =====
+        window.loadDemo = function() {
+            const demo = [
+                'pt\t指标\t三级类目\t实验组名称\t对照组数值\t实验组数值\t差值\t相对差值\tP值\t显著性\tBH矫正后P值\tBH矫正后显著性',
+                'day\tpv-商详访问PV\t整体\tv1：2香调可出+3tab可出\t72044.50 (72044.50 = 72661.43 - 617.93)\t72661.43 (72661.43 = 72044.50 + 617.93)\t616.93\t0.008564\t0.128\t不显著\t0.128\t不显著',
+                'day\tuv-商详访问UV\t整体\tv1：2香调可出+3tab可出\t45102.00 (45102.00 = 45823.00 - 721.00)\t45823.00 (45823.00 = 45102.00 + 721.00)\t721.00\t0.015986\t0.042\t显著\t0.042\t显著',
+                'day\tipv-人均访问商品量\t整体\tv1：2香调可出+3tab可出\t3.45 (3.45 = 3.52 - 0.07)\t3.52 (3.52 = 3.45 + 0.07)\t0.07\t0.020290\t0.073\t接近显著\t0.073\t接近显著',
+                'day\tduration-人均访问时长\t整体\tv1：2香调可出+3tab可出\t186.30 (186.30 = 190.10 - 3.80)\t190.10 (190.10 = 186.30 + 3.80)\t3.80\t0.020397\t0.215\t不显著\t0.215\t不显著',
+                'day\tcvr-购买转化率\t整体\tv1：2香调可出+3tab可出\t4.34% (4.34% = 4.34% - 0.00%)\t4.34% (4.34% = 4.34% + 0.00%)\t0.00%\t0.000000\t0.950\t不显著\t0.950\t不显著',
+                'day\torders-当天子订单量\t整体\tv1：2香调可出+3tab可出\t3156.00 (3156.00 = 3287.00 - 131.00)\t3287.00 (3287.00 = 3156.00 + 131.00)\t131.00\t0.041508\t0.018\t显著\t0.018\t显著',
+                'day\torders7d-7日内成交单量\t整体\tv1：2香调可出+3tab可出\t15200.00 (15200.00 = 15480.00 - 280.00)\t15480.00 (15480.00 = 15200.00 + 280.00)\t280.00\t0.018421\t0.095\t接近显著\t0.095\t接近显著',
+                'day\tasp-客单价\t整体\tv1：2香调可出+3tab可出\t188.72 (188.72 = 184.53 + 4.19)\t184.53 (184.53 = 188.72 - 4.19)\t-4.19\t-0.022202\t0.035\t显著\t0.035\t显著',
+                'day\tasp7d-7日客单价\t整体\tv1：2香调可出+3tab可出\t192.10 (192.10 = 189.44 + 2.66)\t189.44 (189.44 = 192.10 - 2.66)\t-2.66\t-0.013847\t0.088\t接近显著\t0.088\t接近显著',
+                'day\tatv-实付笔单价\t整体\tv1：2香调可出+3tab可出\t156.30 (156.30 = 153.87 + 2.43)\t153.87 (153.87 = 156.30 - 2.43)\t-2.43\t-0.015547\t0.199\t不显著\t0.199\t不显著',
+                'day\tuvValue-实付UV价值\t整体\tv1：2香调可出+3tab可出\t8.52 (8.52 = 8.67 - 0.15)\t8.67 (8.67 = 8.52 + 0.15)\t0.15\t0.017606\t0.112\t不显著\t0.112\t不显著',
+                'day\tuvValue7d-7日实付UV价值\t整体\tv1：2香调可出+3tab可出\t26.15 (26.15 = 26.90 - 0.75)\t26.90 (26.90 = 26.15 + 0.75)\t0.75\t0.028681\t0.044\t显著\t0.044\t显著',
+                'day\tgmv-实付GMV\t整体\tv1：2香调可出+3tab可出\t595493.43 (595493.43 = 606375.74 - 10882.31)\t606375.74 (606375.74 = 595493.43 + 10882.31)\t10882.31\t0.018274\t0.094\t接近显著\t0.094\t接近显著',
+                'day\tgmv7d-7日实付GMV\t整体\tv1：2香调可出+3tab可出\t1820000.00 (1820000.00 = 1856000.00 - 36000.00)\t1856000.00 (1856000.00 = 1820000.00 + 36000.00)\t36000.00\t0.019780\t0.033\t显著\t0.033\t显著',
+                'day\tretain3d-商详3日留存\t整体\tv1：2香调可出+3tab可出\t22.50% (22.50% = 22.10% + 0.40%)\t22.10% (22.10% = 22.50% - 0.40%)\t-0.40%\t-0.017778\t0.156\t不显著\t0.156\t不显著',
+                'day\treturn-次日回访率\t整体\tv1：2香调可出+3tab可出\t11.43% (11.43% = 11.32% + 0.11%)\t11.32% (11.32% = 11.43% - 0.11%)\t-0.11%\t-0.009624\t0.326\t不显著\t0.326\t不显著',
+                'day\treturn7d-7日回访率\t整体\tv1：2香调可出+3tab可出\t18.20% (18.20% = 17.95% + 0.25%)\t17.95% (17.95% = 18.20% - 0.25%)\t-0.25%\t-0.013736\t0.410\t不显著\t0.410\t不显著',
+                'day\tpv-商详访问PV\t香水类目\tv1：2香调可出+3tab可出\t28000.00 (28000.00 = 28500.00 - 500.00)\t28500.00 (28500.00 = 28000.00 + 500.00)\t500.00\t0.017857\t0.065\t接近显著\t0.065\t接近显著',
+                'day\tcvr-购买转化率\t香水类目\tv1：2香调可出+3tab可出\t5.10% (5.10% = 5.35% - 0.25%)\t5.35% (5.35% = 5.10% + 0.25%)\t0.25%\t0.049020\t0.028\t显著\t0.028\t显著',
+                '',
+                'day\tpv-商详访问PV\t整体\tv2：2香调可出\t72044.50 (72044.50 = 73500.00 - 1455.50)\t73500.00 (73500.00 = 72044.50 + 1455.50)\t1455.50\t0.020203\t0.038\t显著\t0.038\t显著',
+                'day\tuv-商详访问UV\t整体\tv2：2香调可出\t45102.00 (45102.00 = 46200.00 - 1098.00)\t46200.00 (46200.00 = 45102.00 + 1098.00)\t1098.00\t0.024343\t0.021\t显著\t0.021\t显著',
+                'day\tipv-人均访问商品量\t整体\tv2：2香调可出\t3.45 (3.45 = 3.60 - 0.15)\t3.60 (3.60 = 3.45 + 0.15)\t0.15\t0.043478\t0.055\t接近显著\t0.055\t接近显著',
+                'day\tduration-人均访问时长\t整体\tv2：2香调可出\t186.30 (186.30 = 188.50 - 2.20)\t188.50 (188.50 = 186.30 + 2.20)\t2.20\t0.011809\t0.310\t不显著\t0.310\t不显著',
+                'day\tcvr-购买转化率\t整体\tv2：2香调可出\t4.34% (4.34% = 4.28% + 0.06%)\t4.28% (4.28% = 4.34% - 0.06%)\t-0.06%\t-0.013825\t0.310\t不显著\t0.310\t不显著',
+                'day\torders-当天子订单量\t整体\tv2：2香调可出\t3156.00 (3156.00 = 3400.00 - 244.00)\t3400.00 (3400.00 = 3156.00 + 244.00)\t244.00\t0.077315\t0.005\t显著\t0.005\t显著',
+                'day\torders7d-7日内成交单量\t整体\tv2：2香调可出\t15200.00 (15200.00 = 14900.00 + 300.00)\t14900.00 (14900.00 = 15200.00 - 300.00)\t-300.00\t-0.019737\t0.180\t不显著\t0.180\t不显著',
+                'day\tasp-客单价\t整体\tv2：2香调可出\t188.72 (188.72 = 195.00 - 6.28)\t195.00 (195.00 = 188.72 + 6.28)\t6.28\t0.033282\t0.012\t显著\t0.012\t显著',
+                'day\tasp7d-7日客单价\t整体\tv2：2香调可出\t192.10 (192.10 = 198.50 - 6.40)\t198.50 (198.50 = 192.10 + 6.40)\t6.40\t0.033316\t0.026\t显著\t0.026\t显著',
+                'day\tatv-实付笔单价\t整体\tv2：2香调可出\t156.30 (156.30 = 160.20 - 3.90)\t160.20 (160.20 = 156.30 + 3.90)\t3.90\t0.024950\t0.072\t接近显著\t0.072\t接近显著',
+                'day\tuvValue-实付UV价值\t整体\tv2：2香调可出\t8.52 (8.52 = 8.95 - 0.43)\t8.95 (8.95 = 8.52 + 0.43)\t0.43\t0.050469\t0.048\t显著\t0.048\t显著',
+                'day\tuvValue7d-7日实付UV价值\t整体\tv2：2香调可出\t26.15 (26.15 = 27.10 - 0.95)\t27.10 (27.10 = 26.15 + 0.95)\t0.95\t0.036329\t0.039\t显著\t0.039\t显著',
+                'day\tgmv-实付GMV\t整体\tv2：2香调可出\t595493.43 (595493.43 = 620000.00 - 24506.57)\t620000.00 (620000.00 = 595493.43 + 24506.57)\t24506.57\t0.041152\t0.008\t显著\t0.008\t显著',
+                'day\tgmv7d-7日实付GMV\t整体\tv2：2香调可出\t1820000.00 (1820000.00 = 1885000.00 - 65000.00)\t1885000.00 (1885000.00 = 1820000.00 + 65000.00)\t65000.00\t0.035714\t0.015\t显著\t0.015\t显著',
+                'day\tretain3d-商详3日留存\t整体\tv2：2香调可出\t22.50% (22.50% = 23.10% - 0.60%)\t23.10% (23.10% = 22.50% + 0.60%)\t0.60%\t0.026667\t0.095\t接近显著\t0.095\t接近显著',
+                'day\treturn-次日回访率\t整体\tv2：2香调可出\t11.43% (11.43% = 11.50% - 0.07%)\t11.50% (11.50% = 11.43% + 0.07%)\t0.07%\t0.006124\t0.520\t不显著\t0.520\t不显著',
+                'day\treturn7d-7日回访率\t整体\tv2：2香调可出\t18.20% (18.20% = 18.55% - 0.35%)\t18.55% (18.55% = 18.20% + 0.35%)\t0.35%\t0.019231\t0.200\t不显著\t0.200\t不显著',
+                'day\tpv-商详访问PV\t香水类目\tv2：2香调可出\t28000.00 (28000.00 = 29200.00 - 1200.00)\t29200.00 (29200.00 = 28000.00 + 1200.00)\t1200.00\t0.042857\t0.015\t显著\t0.015\t显著',
+                'day\tcvr-购买转化率\t香水类目\tv2：2香调可出\t5.10% (5.10% = 4.90% + 0.20%)\t4.90% (4.90% = 5.10% - 0.20%)\t-0.20%\t-0.039216\t0.088\t接近显著\t0.088\t接近显著'
+            ].join('\n');
+
+            pasteTextarea.value = demo;
+            // 切换到粘贴面板
+            switchInputTab('paste');
+            showToast('已加载示例数据（2个实验组，含整体+类目），点击「解析数据」开始', 'success');
+        };
+
+        // ===== Toast =====
+        let toastTimer = null;
+        function showToast(message, type) {
+            if (toastTimer) clearTimeout(toastTimer);
+            toast.textContent = message;
+            toast.className = 'toast ' + (type || '') + ' show';
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+                toast.className = 'toast';
+                toastTimer = null;
+            }, 2500);
+        }
+
+        // ===== 键盘快捷键 =====
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (parsedRows.length > 0) generateReport();
+                else parseData();
+            }
+        });
+    })();
+    </script>
+</body>
+</html>
